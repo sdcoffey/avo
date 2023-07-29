@@ -16,6 +16,7 @@ class Avo::Views::ResourceEditComponent < Avo::ResourceComponent
   end
 
   def back_path
+    return resource_new_path if params[:via_relation_class].present? && via_new?
     return resource_view_path if via_resource?
     return resources_path if via_index?
 
@@ -26,8 +27,16 @@ class Avo::Views::ResourceEditComponent < Avo::ResourceComponent
     resources_path
   end
 
+  def resource_new_path
+    helpers.new_resource_path(resource: @resource)
+  end
+
   def resources_path
     helpers.resources_path(resource: @resource)
+  end
+
+  def resource_new_path
+    helpers.new_resource_path(resource: association_resource)
   end
 
   def resource_view_path
@@ -50,6 +59,10 @@ class Avo::Views::ResourceEditComponent < Avo::ResourceComponent
 
   def via_index?
     params[:via_view] == "index"
+  end
+
+  def via_new?
+    params[:via_view] == "new"
   end
 
   def is_edit?

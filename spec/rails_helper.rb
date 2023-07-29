@@ -96,6 +96,7 @@ def driver_options(headless: false)
   }
 end
 
+Webdrivers::Chromedriver.required_version = "114.0.5735.90"
 Capybara.register_driver :chrome_headless do |app|
   driver = Capybara::Selenium::Driver.new app, **driver_options(headless: true)
   headless_download_setup(driver)

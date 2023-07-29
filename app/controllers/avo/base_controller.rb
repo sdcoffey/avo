@@ -105,13 +105,13 @@ module Avo
 
     def new
       @model = @resource.model_class.new
-      @resource = @resource.hydrate(model: @model, view: :new, user: _current_user)
+      @resource = @resource.hydrate(model: @model, view: :new, user: _current_user, params: params)
 
       set_actions
 
       @page_title = @resource.default_panel_name.to_s
 
-      if is_associated_record?
+      if is_associated_record? && params[:via_resource_id].to_i.positive?
         via_resource = Avo::App.get_resource_by_model_name(params[:via_relation_class]).dup
         via_model = via_resource.find_record params[:via_resource_id], params: params
         via_resource.hydrate model: via_model
@@ -131,31 +131,37 @@ module Avo
 
       # This means that the record has been created through another parent record and we need to attach it somehow.
       if params[:via_resource_id].present?
-        @reflection = @model._reflections[params[:via_relation]]
-        # Figure out what kind of association does the record have with the parent record
+        related_resource = Avo::App.get_resource_by_model_name(params[:via_relation_class]).dup
+        related_record = related_resource.find_record params[:via_resource_id], params: params
 
-        # Fills in the required infor for belongs_to and has_many
-        # Get the foreign key and set it to the id we received in the params
-        if @reflection.is_a?(ActiveRecord::Reflection::BelongsToReflection) || @reflection.is_a?(ActiveRecord::Reflection::HasManyReflection)
-          related_resource = Avo::App.get_resource_by_model_name params[:via_relation_class]
-          related_record = related_resource.find_record params[:via_resource_id], params: params
-
-          @model.send("#{@reflection.foreign_key}=", related_record.id)
-          @model.save
-        end
-
-        # For when working with has_one, has_one_through, has_many_through, has_and_belongs_to_many, polymorphic
-        if @reflection.is_a? ActiveRecord::Reflection::ThroughReflection
-          # find the record
-          via_resource = ::Avo::App.get_resource_by_model_name(params[:via_relation_class]).dup
-          @related_record = via_resource.find_record params[:via_resource_id], params: params
+        if params[:via_association_type] != "belongs_to"
+          # Figure out what kind of association does the record have with the parent record
+          @reflection = @model._reflections[params[:via_relation]]
           association_name = BaseResource.valid_association_name(@model, params[:via_relation])
 
-          if params[:via_association_type] == "has_one"
-            # On has_one scenarios we should switch the @record and @related_record
-            @related_record.send("#{@reflection.parent_reflection.inverse_of.name}=", @model)
-          else
-            @model.send(association_name) << @related_record
+          # Fills in the required info for belongs_to and has_many
+          # Get the foreign key and set it to the id we received in the params
+          if @reflection.is_a?(ActiveRecord::Reflection::BelongsToReflection) || @reflection.is_a?(ActiveRecord::Reflection::HasManyReflection)
+            if params[:via_association_type] == "has_many"
+              @model.send("#{@reflection.foreign_key}=", related_record.id)
+              @model.save
+            else
+              @model.send(association_name) << related_record
+            end
+          end
+
+          # For when working with has_one, has_one_through, has_many_through, has_and_belongs_to_many, polymorphic
+          if @reflection.is_a? ActiveRecord::Reflection::ThroughReflection
+            # find the record
+            @related_record = related_resource.find_record params[:via_resource_id], params: params
+            association_name = BaseResource.valid_association_name(@model, params[:via_relation])
+
+            if params[:via_association_type] == "has_one"
+              # On has_one scenarios we should switch the @record and @related_record
+              @related_record.send("#{@reflection.parent_reflection.inverse_of.name}=", @model)
+            else
+              @model.send(association_name) << @related_record
+            end
           end
         end
       end
@@ -172,6 +178,7 @@ module Avo
     end
 
     def edit
+      @resource = @resource.hydrate(model: @model, params: params)
       set_actions
     end
 
@@ -444,13 +451,33 @@ module Avo
       # If this is an associated record return to the association show page
       if is_associated_record?
         parent_resource = ::Avo::App.get_resource_by_model_name(params[:via_relation_class]).dup
-        association_name = BaseResource.valid_association_name(@model, params[:via_relation])
 
-        return resource_view_path(
-          model: @model.send(association_name),
-          resource: parent_resource,
-          resource_id: params[:via_resource_id]
-        )
+        if params[:via_association_type] == "belongs_to"
+          model = params[:via_relation_class].safe_constantize.find params[:via_resource_id]
+          return edit_resource_path(resource: parent_resource, model: model,
+            via_relation: params[:via_relation],
+            via_resource_id: @model.id,
+            via_relation_class: @model.class.name,
+            via_association_type: :belongs_to
+          )
+        else
+          association_name = BaseResource.valid_association_name(@model, params[:via_relation])
+
+          return resource_view_path(
+            model: @model.send(association_name),
+            resource: parent_resource,
+            resource_id: params[:via_resource_id]
+          )
+        end
+      elsif params[:via_relation_class].present? && params[:via_association_type] == "belongs_to"
+        parent_resource = ::Avo::App.get_resource_by_model_name(params[:via_relation_class]).dup
+
+        return new_resource_path(resource: parent_resource,
+                                 via_relation: params[:via_relation],
+                                 via_resource_id: @model.id,
+                                 via_relation_class: @model.class.name,
+                                 via_association_type: :belongs_to
+                                 )
       end
 
       redirect_path_from_resource_option(:after_create_path) || resource_view_response_path

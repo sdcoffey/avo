@@ -4,6 +4,7 @@ class Avo::Fields::BelongsToField::EditComponent < Avo::Fields::EditComponent
   def initialize(**args)
     super(**args)
 
+    Rails.logger.info "Avo::Fields::BelongsToField::EditComponent #{view}"
     @polymorphic_record = nil
   end
 
@@ -33,6 +34,18 @@ class Avo::Fields::BelongsToField::EditComponent < Avo::Fields::EditComponent
 
   def polymorphic_resource
     ::Avo::App.get_resource_by_model_name(polymorphic_class)
+  end
+
+  def create_path
+    args = {
+      via_relation: @field.id.to_s,
+      via_relation_class: @resource.model.class.name,
+      via_resource_id: @resource.model.to_param,
+      via_association_type: :belongs_to,
+      via_view: action_name
+    }.compact
+
+    helpers.new_resource_path(resource: @field.target_resource, **args)
   end
 
   # Get the polymorphic id

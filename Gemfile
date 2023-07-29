@@ -37,7 +37,8 @@ gem 'redis', '~> 4.0'
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", ">= 1.4.2", require: false
 # Call 'byebug' anywhere in the code to stop execution and get a debugger console
-gem "byebug", platforms: [:mri, :mingw, :x64_mingw]
+# gem "byebug", platforms: [:mri, :mingw, :x64_mingw]
+gem 'debug', platforms: %i[mri mingw x64_mingw]
 gem "dotenv-rails"
 # Access an interactive console on exception pages or by calling 'console' anywhere in the code.
 gem "web-console", ">= 3.3.0"
@@ -167,3 +168,5 @@ gem "image_processing", "~> 1.12"
 gem "prefixed_ids"
 
 gem "mapkick-rb", "~> 0.1.4"
+
+gem 'amazing_print'

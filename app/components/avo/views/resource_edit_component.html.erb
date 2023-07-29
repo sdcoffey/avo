@@ -62,7 +62,7 @@
                 <%= render field
                   .hydrate(resource: @resource, model: @resource.model, user: @resource.user, view: view_for(field))
                   .component_for_view(view_for field)
-                  .new(field: field, resource: @resource, index: index, form: form, compact: sidebar.present?)
+                  .new(field: field, resource: @resource, index: index, form: form, view: view_for(field), compact: sidebar.present?)
                 %>
               <% end %>
             </div>

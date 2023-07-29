@@ -373,14 +373,11 @@ module Avo
     # We will not overwrite any attributes that come pre-filled in the model.
     def hydrate_model_with_default_values
       default_values = get_fields
-        .select do |field|
-          !field.computed
-        end
+        .reject(&:computed)
         .map do |field|
           value = field.value
 
           if field.type == "belongs_to"
-
             reflection = @model._reflections[@params[:via_relation]]
 
             if field.polymorphic_as.present? && field.types.map(&:to_s).include?(@params[:via_relation_class])
